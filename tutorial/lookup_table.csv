@@ -1,0 +1,28 @@
+file_name,coded_name,variable_name_snake_case,variable_name_title_case,source,notes
+wc2.1_30s_bio_1,bioclim_1,annual_mean_temperature,Annual Mean Temperature,worldclim,
+wc2.1_30s_bio_2,bioclim_2,mean_diurnal_range,Mean Diurnal Range,worldclim,Mean of monthly (max temp - min temp)
+wc2.1_30s_bio_3,bioclim_3,isothermality,Isothermality,worldclim,(bioclim_2 / bioclim_7) * (100)
+wc2.1_30s_bio_4,bioclim_4,temperature_seasonality,Temperature Seasonality,worldclim,Standard deviation * 100
+wc2.1_30s_bio_5,bioclim_5,max_temperature_of_warmest_month,Max Temperature of Warmest Month,worldclim,
+wc2.1_30s_bio_6,bioclim_6,min_temperature_of_warmest_month,Min Temperature of Coldest Month,worldclim,
+wc2.1_30s_bio_7,bioclim_7,temperature_annual_range,Temperature Annual Range,worldclim,bioclim_5 - bioclim_6
+wc2.1_30s_bio_8,bioclim_8,mean_temperature_of_wettest_quarter,Mean Temperature of Wettest Quarter,worldclim,
+wc2.1_30s_bio_9,bioclim_9,mean_temperature_of_driest_quarter,Mean Temperature of Driest Quarter,worldclim,
+wc2.1_30s_bio_10,bioclim_10,mean_temperature_of_warmest_quarter,Mean Temperature of Warmest Quarter,worldclim,
+wc2.1_30s_bio_11,bioclim_11,mean_temperature_of_coldest_quarter,Mean Temperature of Coldest Quarter,worldclim,
+wc2.1_30s_bio_12,bioclim_12,annual_precipitation,Annual Precipitation,worldclim,
+wc2.1_30s_bio_13,bioclim_13,precipitation_of_wettest_month,Precipitation of Wettest Month,worldclim,
+wc2.1_30s_bio_14,bioclim_14,precipitation_of_driest_month,Precipitation of Driest Month,worldclim,
+wc2.1_30s_bio_15,bioclim_15,precipitation_seasonality,Precipitation Seasonality,worldclim,Coefficient of variation
+wc2.1_30s_bio_16,bioclim_16,precipitation_of_wettest_quarter,Precipitation of Wettest Quarter,worldclim,
+wc2.1_30s_bio_17,bioclim_17,precipitation_of_driest_quarter,Precipitation of Driest Quarter,worldclim,
+wc2.1_30s_bio_18,bioclim_18,precipitation_of_warmest_quarter,Precipitation of Warmest Quarter,worldclim,
+wc2.1_30s_bio_19,bioclim_19,precipitation_of_coldest_quarter,Precipitation of Coldest Quarter,worldclim,
+bdod_5-30cm_avg_30s,bdod,bulk_density,Bulk Density,soilgrids,
+cfvo_5-30cm_avg_30s,cfvo,coarse_fragments,Coarse Fragments,soilgrids,
+clay_5-30cm_avg_30s,clay,clay,Clay,soilgrids,
+nitrogen_5-30cm_avg_30s,nitrogen,total_nitrogen,Total Nitrogen,soilgrids,
+ocd_5-30cm_avg_30s,ocd,organic_carbon_density,Organic Carbon Density,soilgrids,
+phh2o_5-30cm_avg_30s,phh20,ph_in_h2o,pH in H2O,soilgrids,
+sand_5-30cm_avg_30s,sand,sand,Sand,soilgrids,
+wc2.1_30s_elev,elev,elevation,Elevation,worldclim/srtm,

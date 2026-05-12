@@ -1,0 +1,7 @@
+.Rproj.user
+.DS_Store
+.Rhistory
+.positai
+
+#abiotic data and shape files
+tutorial/1.data

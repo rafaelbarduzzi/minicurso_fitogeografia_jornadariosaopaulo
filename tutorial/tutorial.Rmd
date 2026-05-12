@@ -1,0 +1,454 @@
+---
+title: 'Assessing and Visualizing Alpha and Beta Diversity'
+author: "Scales in Biodiversity course, BSc. minor Biodiversity"
+output: pdf_document
+---
+
+##### Background    
+
+Large genera offer valuable insights into the spatial distribution of biodiversity. *Mimosa* (Leguminosae), the group of sensitive plants with approximately 540 species, is primarily distributed throughout the Neotropics, spanning a variety of biomes such as savannas, seasonally dry tropical forests, and rainforests. In this practicum, we assess alpha and beta diversity patterns in the Neotropics using *Mimosa* as a model group and investigate potential drivers of species turnover across spatial scales.
+
+##### Data    
+
+- **Spatial data**: Global spatial data downloaded from [\textcolor{blue}{ArcGIS Hub}](https://hub.arcgis.com/datasets/esri::world-countries)
+
+- **Occurrence data**: Global occurrence of *Mimosa* species downloaded from [\textcolor{blue}{GBIF}](https://www.gbif.org), [\textcolor{blue}{speciesLink}](https://specieslink.net), and [\textcolor{blue}{iDigBio}](https://www.idigbio.org).
+
+- **Abiotic data**: Global bioclimatic data downloaded from [\textcolor{blue}{WorldClim 2.1}](https://worldclim.org/data/worldclim21.html).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+```
+
+# 1. Getting started
+First, we’ll clean the workspace by removing any previously loaded objects.
+```{r, echo = TRUE}
+rm(list = ls())
+```
+
+Next, we set our working directory, which is the folder containing all required data for this tutorial. You can do this in R Studio by going to `Session -> Set Working Directory -> Choose Directory`, or by using `setwd()` with the path as an argument.
+
+Then, we’ll install and load the packages necessary for this tutorial. Install any packages you don’t yet have using `install.packages()` and take note of any installation errors. It is recommended to use R version 4.4.1 or later. Throughout this tutorial, if you have any questions about how a specific function works, use the `help()` function with the name of the function as an argument. For example, `help(rast)`.
+````{r, echo = TRUE, message = FALSE, warning = FALSE}
+library(terra) # load and manipulate spatial data
+library(sf) # handle spatial data conveniently as simple features
+library(tidyverse) # compilation of data science packages
+library(data.table) # make presence/absence matrix 
+library(betapart) # run beta diversity analysis
+library(phangorn) # run clustering analysis
+library(dendextend) # handle dendrograms
+library(viridis) # compilation of palettes 
+library(paletteer) # compilation of palettes
+library(ggdendro) # handle dendrograms using ggplot2
+library(gridExtra) # arrange plots in the same output 
+library(naturalsort) # read *.tif files in the right order
+library(gdm) # assess potential drivers of beta diversity
+````
+
+# 2. Loading and manipulating spatial objects
+
+Spatial data are essential in biodiversity analyses because geographic space needs to be accurately represented. In R, we use the `terra` and the `sf` packages to work with spatial data. Here, we’ll start by loading a spatial object representing global land areas.
+```{r}
+world <- vect("data/World_Countries/World_Countries.shp")
+```
+
+Now, let’s inspect this object. 
+```{r}
+world
+```
+
+This provides details like the object class (`SpatVect`), type of geometries (polygons), spatial extent, projection, and the attributes associated with each geometry. Key information includes the coordinate reference system (WGS 84 / Pseudo-Mercator) and the attributes tied to each geometry. For a deeper dive into spatial object information, refer to [\textcolor{blue}{this resource}](https://r.geocompx.org).
+
+We’ll use the `CONTINENT` attribute to filter for South American geometries and project using the [\textcolor{blue}{Mercator}]((https://desktop.arcgis.com/en/arcmap/latest/map/projections/mercator.htm)) projection. For more information about projected coordinate reference systems (CRS) and the importance of projecting spatial data, check [\textcolor{blue}{this}](https://www.esri.com/arcgis-blog/products/arcgis-pro/mapping/gcs_vs_pcs/).
+```{r}
+SAm <- world %>% 
+  subset(subset = .$CONTINENT == "South America") %>%
+  project("EPSG:3395")
+```
+
+Finally, let’s visualize South America on a map:
+```{r}
+plot(SAm)
+```
+
+## 2.1. Preparing grid cells
+
+In spatial biodiversity analysis, ensuring areas of equal spatial size is essential. One straightforward approach is to divide the study area into grid cells. Now that we have the spatial object representing South America’s land area, we’ll divide it into a grid of equally-sized hexagonal cells, each with 100 km between opposing edges.
+```{r}
+# Convert the class from 'SpatVector' to 'sf', a spatial object class that is more flexible 
+# and convenient to work with in R
+## Occasionally, spatial geometries can become invalid due to self-intersections 
+## or overlapping lines in polygon boundaries. Here, we also fix this.
+SAm_sf <- st_as_sf(SAm) %>%
+  st_make_valid(.)
+
+# Create hexagonal grid cells spanning the spatial extent of South America and 
+# add an ID for each grid cell
+hex_grid_sf <- st_make_grid(SAm_sf, cellsize = 100000, square = F) %>%
+  st_sf(.) %>%
+  mutate(grid_id = 1:nrow(.))
+
+# Identify grid cells that actually overlap with South America, creating a 
+# binary vector (0 = no intersection; 1 = intersects)
+is_intersecting <- hex_grid_sf %>%
+  st_intersects(., SAm_sf) %>%
+  sapply(., function(x) if(length(x) == 0) 0 else 1)
+
+# Keep only grid cells that intersect with South America
+hex_grid_SAm <- hex_grid_sf[which(is_intersecting == 1), ] 
+```
+
+Let’s visualize South America divided into hexagonal grid cells.
+```{r, fig.align = 'center'}
+plot(st_geometry(hex_grid_SAm))
+```
+# Question 1: 
+
+How many grid cells have we created? *Tip*: The structure of a `sf` object is similar to that of a data frame. Each geometry is a row associated with multiple attributes.
+
+# 3. Loading and manipulating georeferenced occurrence data
+
+Georeferenced occurrence data provide precise information on species locations, making them ideal for spatial biodiversity analyses. In this section, we load the global occurrence data of *Mimosa* species and prepare it by creating a presence/absence matrix based on grid cells, enabling us to identify species distributions across spatial units.
+```{r}
+occurrence <- read.csv("data/occurrence_clean.csv")
+```
+
+Let's inspect the structure of the occurrence data.
+```{r}
+str(occurrence)
+```
+
+# Question 2:
+
+How many records does the occurrence dataset contain? What do those records refer to? *Tip*: check the `basis_of_record` attribute.
+
+The dataset contains 22 attributes, such as the species name, the collector and determiner name, location-related information, year collected, and, most importantly, longitude and latitude. We will use the latter to convert the dataset into a spatial object.
+```{r}
+# Convert occurrence data frame to a 'sf' object using the WGS84 CRS, which is 
+# the standard for GPS devices, and then reproject the object using the grid 
+# cells' CRS 
+occurrence_points <- st_as_sf(x = occurrence, 
+                              coords = c("longitude", "latitude"),
+                              crs = "EPSG:4326") %>% 
+  st_transform(., crs(hex_grid_SAm))
+```
+
+Now, with that in hand, we will intersect the occurrence spatial points (records) with the grid cells and retrieve the grid cell ID for each record. 
+```{r}
+# Intersect occurrences with grid cells to identify which records are within 
+# each grid cell
+inter_occurrence <- st_intersects(occurrence_points, hex_grid_SAm)
+
+# Assign each occurrence record to a grid cell based on the intersection result
+occurrence_points$grid_id <- NA
+for(j in 1:nrow(occurrence_points)){
+  if(length(inter_occurrence[[j]]) == 1){
+    occurrence_points$grid_id[j] <- hex_grid_SAm$grid_id[inter_occurrence[[j]]]
+  }
+}
+
+# Filter the occurrence data to keep only records that fall within the study area
+occurrence$grid_id <- occurrence_points$grid_id
+occurrence <- occurrence %>%
+  filter(!is.na(grid_id))
+```
+
+Then, we can create a presence/absence community matrix (0 = absence; 1 = presence), with grid cells on rows and species on columns. This will serve as input for the subsequent spatial analyses of biodiversity. 
+```{r}
+# Create a community matrix with species presence/absence in each grid cell
+comm_matrix <- dcast(as.data.table(occurrence), 
+                     grid_id ~ full_name_clean_sp_lvl,
+                     fun.aggregate = length)
+comm_matrix <- as.data.frame(comm_matrix)
+rownames(comm_matrix) <- comm_matrix$grid_id
+comm_matrix <- comm_matrix[ , -1]           # Remove the grid_id column
+comm_matrix[comm_matrix > 1] <- 1           # Convert values >1 to 1 for 
+                                            # presence/absence data
+```
+
+# 4. Calculating alpha diversity as species richness
+
+Species richness is the simplest way to calculate alpha diversity. To do that, 
+we just need to count the number of species per grid cell. 
+```{r, fig.align = 'center'}
+# Sum number of species per grid cell
+sp_richness <- rowSums(comm_matrix)
+
+# Store species richness values in each grid cell
+hex_grid_SAm <- hex_grid_SAm %>% 
+  mutate(sp_richness = sp_richness[as.character(grid_id)])
+
+# Plot species richness
+sr <- ggplot() +
+  geom_sf(data = SAm_sf,
+          aes(), color = "black", fill = "transparent",
+          lwd = 0.3) +
+  geom_sf(data = hex_grid_SAm, 
+          aes(fill = sp_richness),
+          color = "transparent",
+          lwd = 0) +
+  scale_fill_continuous(type = "viridis",
+                        na.value = NA,
+                        alpha = 0.9,
+                        name = "Species richness") +
+  theme_bw() +
+  theme(legend.position = "right")
+sr
+```
+
+# Question 3: 
+
+What can you tell about the species richness of *Mimosa* across South America?
+
+# 5. Calculating beta diversity
+
+Beta diversity can be partitioned in two different phenomena: spatial turnover and nestedness of assemblages. Turnover implies the replacement of some species by others as a consequence of environmental sorting or spatial and historical constraints. Nestedness, on the other hand, occurs when the biotas of sites with smaller numbers of species are subsets of the biotas at richer sites. If you want to learn more about the partitioning of beta diversity, check [\textcolor{blue}{this paper}](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1466-8238.2009.00490.x).
+
+Before proceeding, let's prepare our community matrix for the beta diversity analyses. Singletons—species found in only one sample—can introduce noise by inflating dissimilarity between communities and obscuring spatial patterns in species composition. Similarly, cells with only one species can have the same effect. To address this, we'll remove both singletons and grid cells containing a single species. The code below iterates this process until these conditions are met.
+
+```{r}
+# Remove (1) grid cells with a number of species below the provided threshold, and
+# (2) unique species (i.e. occur in less than two cells)
+threshold <- 2
+
+### Loop over steps 1 and 2
+repeat{
+  # Identify cells and species to remove
+  cells_to_rm <- which(rowSums(comm_matrix) < threshold)
+  sp_to_rm <- which(colSums(comm_matrix) < threshold)
+  # Break loop if no more rows or columns meet the removal criteria
+  if (length(cells_to_rm) == 0 && length(sp_to_rm) == 0) {
+    break
+  }
+  # Remove identified cells and species
+  if (length(cells_to_rm) > 0) {
+    comm_matrix <- comm_matrix[-cells_to_rm, , drop = FALSE]
+  }
+  if (length(sp_to_rm) > 0) {
+    comm_matrix <- comm_matrix[, -sp_to_rm, drop = FALSE]
+  }
+}
+```
+
+Let's now run a multiple-site analyses of beta diversity to inspect the overall species composition heterogeneity across our samples and to check which beta diversity component is the most influential. 
+```{r}
+beta_multi <- beta.multi(x = comm_matrix,
+                         index.family = "jaccard")
+beta_multi
+```
+
+Considering that a value of 1 implies maximum dissimilarity, overall beta diversity (`beta.JAC`) is very high (>0.99) for our samples. With the nestedness component (`beta.JNE`) being negligible (0.001), we will focus on the turnover component (`beta.JTU`) in the subsequent steps.
+
+Next, we'll perform a pairwise beta diversity analysis to calculate beta diversity and its components between every possible pair of samples, storing the results in a distance matrix.
+```{r, fig.align = 'center'}
+beta_pair <- beta.pair(x = comm_matrix, 
+                       index.family = "jaccard")
+```
+
+Using this distance matrix, we’ll conduct a clustering analysis to visualize relationships between samples on both a map and a dendrogram. There are various algorithms available to cluster elements based on their similarity. Here, we’ll use the Ward algorithm, which generally performs well within the context of beta diversity.
+```{r}
+# Run a clustering analysis using the Ward algorithm for the turnover component
+set.seed(1)
+jtu_cluster <- upgma(beta_pair$beta.jtu, method = "ward.D")
+jtu_hc <- as.hclust(jtu_cluster)
+
+# Make a dendrogram
+jtu_dend <- as.dendrogram(jtu_hc) 
+
+# Split the dendrogram into clusters and assign a different color to each one of 
+# them
+## Here, we arbitrarily split the dendrogram into 5 clusters. Ultimately, the 
+## number of clusters will come to the research question, but it is usually better
+## to report results with a varying number of clusters. 
+ncluster <- 5
+colors <- as.character(paletteer_d("ggthemes::colorblind"))[1:ncluster]
+jtu_dend <- color_branches(jtu_dend, k = ncluster,
+                            col = colors) %>% 
+  set("branches_lwd", c(0.25)) 
+
+# Make a dendrogram plot
+dend <- as.ggdend(jtu_dend)
+dend <- ggplot(dend, labels = FALSE) +
+  scale_x_reverse(expand = c(0.2, 0)) + # Reverse the x-axis to make tips face 
+                                        # left
+  coord_flip()                          # Rotate plot to horizontal orientation
+
+# Get the cluster ID and color for each grid cell
+grid_id_cluster <- data.frame("grid_id" = labels(jtu_dend), 
+                              "colour" = get_leaves_branches_col(
+                                jtu_dend
+                              ), 
+                              "cluster_membership" = NA)
+colors_2 <- colors
+names(colors_2) <- as.character(1:length(colors_2))
+for(i in 1:nrow(grid_id_cluster)){
+  grid_id_cluster$cluster_membership[i] <- 
+    names(colors_2)[unname(colors_2) == grid_id_cluster$colour[i]]
+}
+
+# Encode cluster IDs as factors
+grid_id_cluster$cluster_membership <- 
+  factor(grid_id_cluster$cluster_membership, 
+         levels = unique(grid_id_cluster$cluster_membership))
+
+# Merge spatial data and cluster IDs and colours
+jtu_sf <- merge(hex_grid_SAm, grid_id_cluster, by.x = "grid_id",
+                 all.x = TRUE, all.y = TRUE)
+
+# Make map plot
+map <- ggplot() +
+  geom_sf(data = SAm_sf,
+          aes(), color = "black", fill = "transparent",
+          lwd = 0.3)  +
+  geom_sf(data = jtu_sf,
+          aes(fill = cluster_membership),
+          color = "transparent",
+          lwd = 0) +
+  scale_fill_manual(values = adjustcolor(colors, alpha = 0.9),
+                    na.value = NA)+
+  theme_bw() +
+  theme(legend.position = "none") 
+
+# Plot map and dendrogram side by side
+grid.arrange(map, dend, ncol = 2)
+```
+
+The map and dendrogram work together to illustrate similarities in species composition across grid cells. Each terminal (leaf) in the dendrogram represents a grid cell, with the clustering reflecting compositional similarities between cells. Cells of the same color on the map are more compositionally similar than those of different colors. Additionally, the dendrogram shows relationships among grid cell clusters, and we can interpret it similarly to how we do with a phylogenetic tree. For example, yellow and green cells are more similar to each other than to any other cells.
+
+# Question 4: 
+
+What can you deduce from the map and the dendrogram? What patterns have emerged? *Tip*: Take a look at the distribution of biomes across South America. You can google it or use the image in the folder of this tutorial. 
+
+# 6. Assessing the drivers of spatial turnover using GDM
+
+Until now, we have assessed *how* species are distributed across space using alpha diversity (species richness) and beta diversity (Jaccard dissimilarity). However, understanding *why* species composition changes across space is equally or even more important, as it can reveal insights into ecological patterns and processes. In this section, we will examine the drivers of spatial turnover for *Mimosa* species across South America, focusing on temperature- and precipitation-related variables downloaded from [WorldClim](https://worldclim.org/data/worldclim21.html) and soil-related variables downloaded from [SoilGrids](https://soilgrids.org). To do this, we will apply Generalized Dissimilarity Modelling (GDM), which models pairwise compositional distances between sites as a function of potential predictors.
+
+Let's begin by loading these abiotic variables into our workspace.
+```{r}
+# Load BioClim variables
+bioclim_list <- 
+  naturalsort(list.files("data/bioclim_mercator",
+                         pattern =".tif$", full.names = TRUE))
+bioclim_rasters <- rast(bioclim_list)
+## Change BioClim names
+lookup <- read.csv("data/lookup_table.csv")
+names(bioclim_rasters) <- lookup$variable_name_snake_case[1:19]
+
+# Load Soil World
+soil_list <- list.files("data/soil_world_mercator",
+                        pattern = ".tif$", full.names = TRUE)
+soil_rasters <- rast(soil_list)
+## Change Soil World names
+lookup <- read.csv("data/lookup_table.csv")
+names(soil_rasters) <- lookup$variable_name_snake_case[20:26]
+```
+
+The variables are stored as 30-second resolution rasters, which are incompatible with the spatial units we defined for our analyses. Fortunately, we can address this issue by applying zonal statistics to assign the variables to each of our grid cells. Using this approach, we’ll calculate weighted means for each grid cell based on its proportion of intersection with the rasters.
+```{r}
+z_stats_bioclim <- terra::zonal(bioclim_rasters, 
+                                vect(hex_grid_SAm), 
+                                na.rm = TRUE,
+                                w = NULL, 
+                                weights = TRUE,
+                                exact = TRUE, 
+                                touches = TRUE, 
+                                as.raster = FALSE)
+z_stats_soil <- terra::zonal(soil_rasters, 
+                             vect(hex_grid_SAm), 
+                             na.rm = TRUE,
+                             w = NULL, 
+                             weights = TRUE,
+                             exact = TRUE, 
+                             touches = TRUE, 
+                             as.raster = FALSE)
+z_stats <- cbind(z_stats_bioclim, z_stats_soil)
+```
+
+We’ll use zonal statistics to prepare a site-by-predictor matrix, which will serve as an input for GDM
+```{r}
+# Get centroid coordinates of each grid cell (important to calculate geographic
+# distances later)
+grid_coords <- crds(centroids(vect(hex_grid_SAm)))
+
+# Prepare site-by-predictor matrix
+site_predictor <- data.frame("grid_id" = hex_grid_SAm$grid_id, 
+                             "lon" = grid_coords[ , 1],
+                             "lat" = grid_coords[ , 2])
+site_predictor <- cbind(site_predictor,
+                        z_stats)
+
+# Assign abiotic values for each grid cell in the spatial object
+grid_cells <- cbind(hex_grid_SAm, site_predictor)
+```
+
+Now let’s run the GDM and examine the results. The key outputs are the percent deviance explained and the sum of coefficients for each variable. Percent deviance explained indicates how much variation in community dissimilarity is accounted for by the predictors, while the sum of coefficients for each variable shows the contribution of each variable to this explanation (with higher sums indicating a greater explanatory contribution). Here, we also add geographic distance as a putative predictor for species turnover across space with `geo = TRUE`. 
+```{r}
+# Remove NAs from the site-by-predictor matrix and match community matrix
+site_predictor <- site_predictor %>% 
+  filter(complete.cases(.) & grid_id %in% rownames(comm_matrix))
+
+# Get a site-pair table (GDM input)
+biodata_1 <- comm_matrix %>% 
+  as.data.frame(.) %>% 
+  mutate(grid_id = as.numeric(rownames(.))) %>%
+  relocate(., grid_id) %>%
+  filter(grid_id %in% site_predictor$grid_id)
+gdm_tab <- formatsitepair(bioData = biodata_1, 
+                          bioFormat = 1, 
+                          siteColumn = "grid_id", 
+                          predData = site_predictor, 
+                          XColumn = "lon", 
+                          YColumn = "lat",
+                          dist = "jaccard",
+                          weightType = "richness")
+
+# Run GDM
+gdm_model <- gdm(gdm_tab, geo = TRUE)
+summary(gdm_model)
+```
+
+We can partition the model using `gdm.partition.deviance()` to assess how much each variable category (climate, soil, space) contributes to deviance explained.
+```{r}
+# Partition 2 groups of variables
+## Make list of variable sets for partitioning
+varSet <- vector("list", 2)
+
+# Now, name the variable groups for partitioning
+# Two groups (climate & soil)
+names(varSet) <- c("climate", "soil")
+
+# Add variable names
+varSet$soil <- names(soil_rasters)
+varSet$climate <- names(bioclim_rasters)
+
+# Run the function to partition soil, climate, and space (partSpace = TRUE)
+scgPart <- gdm.partition.deviance(gdm_tab, varSet, partSpace = TRUE)
+scgPart
+```
+
+# Question 5: 
+
+What is the 5 most important drivers of beta diversity, according to our model? *Tip*: Check sum of coefficients. 
+
+If you are curious about how a given abiotic variable is distributed across the study area, try plotting it. In the example below, we plot annual precipitation. Use your answer for the question above to visually explore the distribution of the most important drivers of beta diversity. Can you adjust the parameters of the code yourself? *Tip*: Look for the variable name.
+```{r}
+ggplot() +
+  geom_sf(data = SAm_sf,
+          color = "black",
+          lwd = 0.3) +
+  geom_sf(data = grid_cells,
+          aes(fill = annual_precipitation),
+          color = "transparent",
+          lwd = 0) +
+  scale_fill_gradient(low = adjustcolor(viridis(1), alpha.f = 0.7),
+                      high = adjustcolor(viridis(16), alpha.f = 0.7)) +
+  ggtitle("Annual Precipitation") +
+  labs(fill = NULL,
+       colour = NULL) +
+  theme_bw()
+```
+
+
+
+
+
