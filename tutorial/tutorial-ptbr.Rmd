@@ -339,7 +339,7 @@ Vamos começar carregando essas variáveis abióticas no nosso ambiente.
 ```{r}
 # Carregar variáveis do BioClim
 bioclim_list <- 
-  naturalsort(list.files("data/bioclim_mercator",
+  naturalsort(list.files("1.data/bioclim_mercator",
                          pattern =".tif$", full.names = TRUE))
 bioclim_rasters <- rast(bioclim_list)
 ## Mudar nomes do BioClim
@@ -347,7 +347,7 @@ lookup <- read.csv("lookup_table.csv")
 names(bioclim_rasters) <- lookup$variable_name_snake_case[1:19]
 
 # Carregar variáveis do Soil World
-soil_list <- list.files("data/soil_world_mercator",
+soil_list <- list.files("1.data/soil_world_mercator",
                         pattern = ".tif$", full.names = TRUE)
 soil_rasters <- rast(soil_list)
 ## Mudar nomes do Soil World

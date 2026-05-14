@@ -4,4 +4,5 @@
 .positai
 
 #abiotic data and shape files
-tutorial/1.data
+tutorial/1.data/soil_world_mercator
+tutorial/1.data/bioclim_mercator
