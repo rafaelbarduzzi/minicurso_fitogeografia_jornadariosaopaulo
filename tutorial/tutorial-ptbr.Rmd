@@ -77,17 +77,6 @@ world_sf <- read_sf("1.data/ne_countries_small/ne_countries_small.shp")
 # Remover o continente Antarctica
 world_sf <- world_sf[world_sf$sovereignt != "Antarctica", ]
 
-latitude_threshold <- 40
-
-world_sf <- world_sf %>%
-  st_transform(4326) %>%  # Transform to WGS84 (lat/lon)
-  mutate(max_lat = sapply(geometry, function(x) max(st_coordinates(x)[, "Y"]))) %>%
-  filter(max_lat <= latitude_threshold) %>%
-  select(-max_lat) %>%
-  st_transform(3395)  # Transform back to Web Mercator
-
-plot(world_sf)
-
 # Reprojetar o objeto espacial para EPSG:3857 (Web Mercator)
 world_sf <- st_transform(world_sf, crs = 3395) 
 
@@ -556,6 +545,8 @@ set.seed(42)
 pd_stats <- ses.pd(comm_matrix_phyl, pruned_tree,
                    include.root = TRUE,
                    null.model = "taxa.label")
+
+# saveRDS(pd_stats, file = "phylogenetic_diversity_stats.rds")
 
 # atribuindo id
 pd_stats$id <- rownames(pd_stats)
