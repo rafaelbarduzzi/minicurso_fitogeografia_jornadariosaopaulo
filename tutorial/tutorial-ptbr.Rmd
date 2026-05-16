@@ -74,8 +74,19 @@ Em análises espaciais de biodiversidade, garantir áreas com o mesmo tamanho es
 ## ou linhas sobrepostas nos limites de polígonos. Aqui também corrigimos isso.
 world_sf <- read_sf("1.data/ne_countries_small/ne_countries_small.shp")
 
+world_sf <- st_make_valid(world_sf[15, ])
+
 # Remover o continente Antarctica
 world_sf <- world_sf[world_sf$sovereignt != "Antarctica", ]
+
+# Create a bounding box to define the crop area
+# This example removes the eastern half of North America
+# Adjust coordinates as needed for your specific area
+box <- st_bbox(c(xmin = -130, ymin = 15, xmax = -80, ymax = 85))
+box <- st_as_sfc(box)
+
+# Crop the world_sf object using the bounding box
+world_sf <- st_crop(world_sf, box)
 
 # Reprojetar o objeto espacial para EPSG:3857 (Web Mercator)
 world_sf <- st_transform(world_sf, crs = 3395) 
