@@ -28,7 +28,7 @@ rm(list = ls())
 
 Em seguida, definimos nosso diretório de trabalho, que é a pasta contendo todos os dados necessários para este tutorial. Você pode fazer isso no RStudio indo em `Session -> Set Working Directory -> Choose Directory`, ou usando `setwd()` com o caminho como argumento.
 
-Depois, vamos instalar e carregar os pacotes necessários para este tutorial. Instale quaisquer pacotes que você ainda não tenha usando `install.packages()` e observe possíveis erros de instalação. Recomenda-se usar a versão do R 4.4.1 ou superior. Ao longo deste tutorial, se você tiver dúvidas sobre como uma função específica funciona, use a função `help()` com o nome da função como argumento. Por exemplo, `help(rast)`.
+Depois, vamos instalar e carregar os pacotes necessários para essa parte do tutorial. Instale quaisquer pacotes que você ainda não tenha usando `install.packages()` e observe possíveis erros de instalação. Recomenda-se usar a versão do R 4.4.1 ou superior. Ao longo deste tutorial, se você tiver dúvidas sobre como uma função específica funciona, use a função `help()` com o nome da função como argumento. Por exemplo, `help(rast)`.
 ````{r, echo = TRUE, message = FALSE, warning = FALSE}
 library(terra) # carregar e manipular dados espaciais
 library(sf) # lidar com dados espaciais de forma conveniente como "simple features"
@@ -74,19 +74,34 @@ Em análises espaciais de biodiversidade, garantir áreas com o mesmo tamanho es
 ## ou linhas sobrepostas nos limites de polígonos. Aqui também corrigimos isso.
 world_sf <- read_sf("1.data/ne_countries_small/ne_countries_small.shp")
 
-world_sf <- st_make_valid(world_sf[15, ])
-
 # Remover o continente Antarctica
 world_sf <- world_sf[world_sf$sovereignt != "Antarctica", ]
 
-# Create a bounding box to define the crop area
-# This example removes the eastern half of North America
-# Adjust coordinates as needed for your specific area
-box <- st_bbox(c(xmin = -130, ymin = 15, xmax = -80, ymax = 85))
-box <- st_as_sfc(box)
+# Vamos cortar o mundo para um aproximado da distribuição de Mimosa, para optimizar as análises
 
-# Crop the world_sf object using the bounding box
-world_sf <- st_crop(world_sf, box)
+# st_is_valid(world_sf)
+# 
+# world_sf <- world_sf[world_sf$sovereignt != "Sudan", ]
+# 
+# world_sf <- world_sf[world_sf$sovereignt != "Russia", ]
+# 
+# st_is_valid(world_sf)
+# 
+# box <- st_bbox(c(
+#   xmin = -126,
+#   xmax = 160,
+#   ymin = -60,
+#   ymax = 45
+# ), crs = st_crs(world_sf))
+# 
+# box <- st_as_sfc(box)
+# 
+# plot(st_geometry(world_sf))
+# plot(box, add = TRUE, border = "red", lwd = 2)
+# 
+# world_sf <- st_crop(world_sf, box)
+# 
+# plot(st_geometry(world_sf))
 
 # Reprojetar o objeto espacial para EPSG:3857 (Web Mercator)
 world_sf <- st_transform(world_sf, crs = 3395) 
@@ -355,32 +370,35 @@ names(soil_rasters) <- lookup$variable_name_snake_case[20:26]
 ```
 
 As variáveis estão armazenadas como rasters com resolução de 30 segundos, o que é incompatível com as unidades espaciais que definimos para nossas análises. Felizmente, podemos resolver esse problema aplicando estatísticas zonais para atribuir as variáveis a cada uma das nossas células de grade. Usando essa abordagem, calcularemos médias ponderadas para cada célula de grade com base na proporção de interseção com os rasters.
+
+Devido ao tempo de processamento dessa etapa (horas), o código foi comentado (#) e já disponibilizamos o resultado como um arquivo rds.
+
 ```{r}
-z_stats_bioclim <- terra::zonal(bioclim_rasters, 
-                                vect(hex_grid_world), 
-                                na.rm = TRUE,
-                                w = NULL, 
-                                weights = TRUE,
-                                exact = TRUE, 
-                                touches = TRUE, 
-                                as.raster = FALSE)
-z_stats_soil <- terra::zonal(soil_rasters, 
-                             vect(hex_grid_world), 
-                             na.rm = TRUE,
-                             w = NULL, 
-                             weights = TRUE,
-                             exact = TRUE, 
-                             touches = TRUE, 
-                             as.raster = FALSE)
-z_stats <- cbind(z_stats_bioclim, z_stats_soil)
+# z_stats_bioclim <- terra::zonal(bioclim_rasters, 
+#                                 vect(hex_grid_world), 
+#                                 na.rm = TRUE,
+#                                 w = NULL, 
+#                                 weights = TRUE,
+#                                 exact = TRUE, 
+#                                 touches = TRUE, 
+#                                 as.raster = FALSE)
+# z_stats_soil <- terra::zonal(soil_rasters, 
+#                              vect(hex_grid_world), 
+#                              na.rm = TRUE,
+#                              w = NULL, 
+#                              weights = TRUE,
+#                              exact = TRUE, 
+#                              touches = TRUE, 
+#                              as.raster = FALSE)
+# z_stats <- cbind(z_stats_bioclim, z_stats_soil)
 
 # saveRDS(z_stats, file = "zonal_statistics.rds")
+
+z_stats <- readRDS("zonal_statistics.rds")
 ```
 
 Usaremos estatísticas zonais para preparar uma matriz local-por-preditor, que servirá como entrada para o GDM
 ```{r}
-# z_stats <- readRDS("zonal_statistics.rds")
-
 # Obter as coordenadas do centróide de cada célula da grade (importante para calcular
 # distâncias geográficas posteriormente)
 grid_coords <- crds(centroids(vect(hex_grid_world)))
@@ -471,28 +489,26 @@ em conta a história evolutiva das espécies. No entando, podemos também avalia
 o quão diversas são as áreas de estudo em termos de linhagens usando a diversidade
 filogenética.
 
-```{r}
-#============#
-# 1. Head ####
-#============#
-
-#intalando e/ou carregando pacotes e carregando banco de dados
-
-if (!require(librarian)) install.packages(c("librarian"))
-librarian::shelf(phytools,ape,tidyverse,ggplot2,beepr,
-                 remotes, picante, viridis, sf)
+Vamos carregar os pacotes para essa segunda parte do tutorial.
+```{r warning=TRUE}
+library(phytools)
+library(ape)
+library(ggplot2)
+library(beepr)
+library(remotes)
+library(picante)
+library(viridis)
+library(sf)
 
 #BiocManager::install("ggtree")
 #remotes::install_github("YuLab-SMU/ggtree", force = TRUE) #alternartiva
 library(ggtree)
+```
 
-# Para as analises de biodiversidade considerando as relacoes filogeneticas,
-# temos que ter acesso a filogenia do grupo
+Agora, vamos analisar a árvore filogenética de Mimosa.
+
+```{r message=FALSE, warning=FALSE}
 tree <- read.tree("1.data/tree-Vasconcelos2020.txt")
-
-#===========================#
-# 2. Manipulando árvores ####
-#===========================#
 
 # Quais sao os componentes da arvore?
 tree
@@ -525,24 +541,28 @@ ggtree(tree, size = 0.2, layout = "circular") + #arvore circular
                                            596, 604, 610, 612, 615, 634, 636, 646, 657,
                                            662, 663, 693, 748),
                                node, NA)),
-            size = 2, color = "white") 
+            size = 2, color = "white")
+```
 
-## 2.2 Podando grupos externos ####
+A árvore possui alguns taxa para além de Mimosa (grupos externos), vamos remover esses outros taxa para essa análise.
 
+```{r warning=FALSE}
 outgroup <- c(tree$tip.label[!grepl("Mimosa", tree$tip.label)])
+
+outgroup
 
 pruned_tree <- drop.tip(tree, outgroup)
 
 ggtree(pruned_tree, size = 0.2, layout = "circular") +
   geom_tiplab(aes(label = sub("Mimosa", "M", label)), 
               size=1.5)
+```
 
-#============================================#
-# 4. Analises de diversidade filogenetica ####
-#============================================#
+Além disso, precisamos também ajustar a nossa matriz de comunidades.
 
+```{r}
 ## 4.1 Matrix de presenca e ausencia filogenetica ####
-comm_matrix
+head(comm_matrix)
 
 #podando a matrix para conter apenas especies que ocorrem na filogenia
 comm_matrix_phyl <- comm_matrix[ , colnames(comm_matrix) %in% 
@@ -550,14 +570,21 @@ comm_matrix_phyl <- comm_matrix[ , colnames(comm_matrix) %in%
 
 # colnames(comm_matrix[!comm_matrix %in% comm_matrix_phyl])
 # colnames(comm_matrix[comm_matrix %in% comm_matrix_phyl])
+```
 
-## 4.2 calculando diversidade filogenetica ####
-set.seed(42)
-pd_stats <- ses.pd(comm_matrix_phyl, pruned_tree,
-                   include.root = TRUE,
-                   null.model = "taxa.label")
+Agora que temos a hipótese filogenética e matriz de presença e ausência ajustada, vamos realizar as análises de diversidade filogenética.
 
+Devido ao tempo de processamento dessa etapa, o código foi comentado (#) e já disponibilizamos o resultado como um arquivo rds.
+
+```{r}
+# set.seed(42)
+# pd_stats <- ses.pd(comm_matrix_phyl, pruned_tree,
+#                    include.root = TRUE,
+#                    null.model = "taxa.label")
+# 
 # saveRDS(pd_stats, file = "phylogenetic_diversity_stats.rds")
+
+pd_stats <- readRDS("phylogenetic_diversity_stats.rds")
 
 # atribuindo id
 pd_stats$id <- rownames(pd_stats)
@@ -577,16 +604,13 @@ pd_stats[,cols_to_round] <- round(pd_stats[,cols_to_round], 2)
 pd_poly <- dplyr::left_join(grid_cells, pd_stats,
                             by = c("grid_id" = "id"))
 
-# write.csv(pd_stats, "3.outputs/pd_stats.csv", row.names = F)
-# write.csv(pd_poly, "3.outputs/pd-poly", row.names = F)
-
 # extensao das grids
 st_bbox(grid_cells)
+```
 
-#=========================================#
-# 5. Plots de diversidade filogenetica ####
-#=========================================#
+Para visualizar os resultados, vamos plotar o mapa com as estimativas das métricas de diversidade filogenética.
 
+```{r}
 #PD
 ggplot(pd_poly) +
   geom_sf(aes(fill = pd.obs), color = NA, alpha = 0.8) +
