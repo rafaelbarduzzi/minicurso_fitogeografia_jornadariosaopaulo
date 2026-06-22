@@ -4,32 +4,39 @@ author: "Minicurso Fitogeografia"
 output: html_document
 ---
 
-##### Contexto    
+##### Contexto
 
-Gêneros grandes oferecem insights valiosos sobre a distribuição espacial da biodiversidade. *Mimosa* (Leguminosae), o grupo das dorme-dorme ou dormideiras, possui aproximadamente 540 espécies e está distribuído principalmente pelos Neotrópicos, abrangendo uma variedade de biomas como savanas, florestas tropicais sazonalmente secas e florestas tropicais úmidas. Nesta atividade prática, avaliamos padrões de diversidade alfa e beta nos Neotrópicos usando *Mimosa* como grupo modelo e investigamos potenciais fatores que explicam a substituição (turnover) de espécies em diferentes escalas espaciais.
+Gêneros grandes oferecem insights valiosos sobre a distribuição espacial da biodiversidade. *Mimosa* (Leguminosae), o grupo das dorme-dorme ou dormideiras, possui ≈ 600 espécies e está distribuído principalmente ao longo dos Neotrópicos, ocorrendo em diferentes biomas como savanas, florestas tropicais sazonalmente secas e florestas tropicais úmidas. 
 
-##### Dados    
+Nesta atividade prática, avaliaremos padrões de diversidade alfa e beta nos Neotrópicos usando *Mimosa* como grupo modelo e investigamos potenciais fatores que explicam a substituição (turnover) de espécies em diferentes escalas espaciais. Também calcularemos a diversidade filogenética ao longo de comunidades espaciais para incorporar a história evolutiva à investigação de padrões biogeográficos.
 
-- **Dados espaciais**: Dados espaciais globais baixados do [\textcolor{blue}{ArcGIS Hub}](https://hub.arcgis.com/datasets/esri::world-countries)
+##### Dados
 
-- **Dados de ocorrência**: Ocorrências globais de espécies de *Mimosa* baixadas do [\textcolor{blue}{GBIF}](https://www.gbif.org), [\textcolor{blue}{speciesLink}](https://specieslink.net) e [\textcolor{blue}{iDigBio}](https://www.idigbio.org).
+- **Dados espaciais**: Dados espaciais globais baixados do [<span style="color:blue;">ArcGIS </span>](https://hub.arcgis.com/datasets/esri::world-countries)
 
-- **Dados abióticos**: Dados bioclimáticos globais baixados do [\textcolor{blue}{WorldClim 2.1}](https://worldclim.org/data/worldclim21.html).
+-   **Dados de ocorrência**: Ocorrências globais de espécies de *Mimosa* baixadas do [<span style="color:blue;">GBIF </span>](https://www.gbif.org), [<span style="color:blue;">specieslink </span>](https://specieslink.net) e [<span style="color:blue;">idigbio </span>](https://www.idigbio.org).
+
+-   **Dados abióticos**: Dados bioclimáticos globais baixados do [<span style="color:blue;">WorldClim 2.1 Hub</span>](https://worldclim.org/data/worldclim21.html).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
 ```
 
 # 1. Começando
+
 Primeiro, vamos limpar o ambiente removendo quaisquer objetos carregados anteriormente.
+
 ```{r, echo = TRUE}
 rm(list = ls())
 ```
 
-Em seguida, definimos nosso diretório de trabalho, que é a pasta contendo todos os dados necessários para este tutorial. Você pode fazer isso no RStudio indo em `Session -> Set Working Directory -> Choose Directory`, ou usando `setwd()` com o caminho como argumento.
+Em seguida, definimos nosso diretório de trabalho, que é a pasta contendo todos os dados necessários para este tutorial. Você pode fazer isso no RStudio indo em `Session -> Set Working Directory -> Choose Directory`, ou usando `setwd()` com o caminho como argumento. Por exemplo
 
-Depois, vamos instalar e carregar os pacotes necessários para essa parte do tutorial. Instale quaisquer pacotes que você ainda não tenha usando `install.packages()` e observe possíveis erros de instalação. Recomenda-se usar a versão do R 4.4.1 ou superior. Ao longo deste tutorial, se você tiver dúvidas sobre como uma função específica funciona, use a função `help()` com o nome da função como argumento. Por exemplo, `help(rast)`.
-````{r, echo = TRUE, message = FALSE, warning = FALSE}
+`setwd("/Users/monique/Documents/GitHub/minicurso_fitogeografia_jornadariosaopaulo/tutorial")`
+
+Depois, vamos instalar e carregar os pacotes necessários para essa parte do tutorial. Instale quaisquer pacotes que você ainda não tenha utilizando a função `install.packages()` e observe possíveis erros de instalação. Recomenda-se usar a versão do R 4.4.1 ou superior. Ao longo deste tutorial, se você tiver dúvidas sobre como uma função específica funciona, use a função `help()` com o nome da função como argumento. Por exemplo, `help(rast)`.
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
 library(terra) # carregar e manipular dados espaciais
 library(sf) # lidar com dados espaciais de forma conveniente como "simple features"
 library(tidyverse) # compilação de pacotes de ciência de dados
@@ -43,23 +50,26 @@ library(ggdendro) # lidar com dendrogramas usando ggplot2
 library(gridExtra) # organizar gráficos na mesma saída
 library(naturalsort) # ler arquivos *.tif na ordem correta
 library(gdm) # avaliar potenciais fatores (drivers) da diversidade beta
-````
+```
 
 # 2. Carregando e manipulando objetos espaciais
 
 Dados espaciais são essenciais em análises de biodiversidade porque o espaço geográfico precisa ser representado com precisão. No R, usamos os pacotes `terra` e `sf` para trabalhar com dados espaciais. Aqui, vamos começar carregando um objeto espacial que representa as áreas terrestres globais.
+
 ```{r}
 world <- vect("1.data/ne_countries_small/ne_countries_small.shp")
 ```
 
-Agora, vamos inspecionar esse objeto. 
+Agora, vamos inspecionar esse objeto.
+
 ```{r}
 world
 ```
 
-Isso fornece detalhes como a classe do objeto (`SpatVect`), o tipo de geometrias (polígonos), a extensão espacial, a projeção e os atributos associados a cada geometria. Informações importantes incluem o sistema de referência de coordenadas (WGS 84 / Pseudo-Mercator) e os atributos vinculados a cada geometria. Para se aprofundar em informações sobre objetos espaciais, consulte [\textcolor{blue}{este recurso}](https://r.geocompx.org).
+Isso fornece detalhes como a classe do objeto (`SpatVect`), o tipo de geometrias (polígonos), a extensão espacial, a projeção e os atributos associados a cada geometria. Informações importantes incluem o sistema de referência de coordenadas (WGS 84 / Pseudo-Mercator) e os atributos vinculados a cada geometria. Para se aprofundar em informações sobre objetos espaciais, consulte [<span style="color:blue;">este recurso</span>](https://r.geocompx.org).
 
 Vamos visualizar o mapa:
+
 ```{r}
 plot(world)
 ```
@@ -67,6 +77,7 @@ plot(world)
 ## 2.1. Preparando células de grade
 
 Em análises espaciais de biodiversidade, garantir áreas com o mesmo tamanho espacial é essencial. Uma abordagem simples é dividir a área de estudo em células de grade. Agora que temos o objeto espacial representando a área terrestre da América do Sul, vamos dividi-la em uma grade de células hexagonais de tamanho igual, cada uma com 100 km entre bordas opostas.
+
 ```{r}
 # Ler o mesmo arquivo 'SpatVector' como 'sf', uma classe de objeto espacial mais flexível
 # e conveniente para trabalhar no R
@@ -123,21 +134,25 @@ hex_grid_world <- hex_grid_sf[which(is_intersecting == 1), ]
 ```
 
 Vamos visualizar o globo dividido em células hexagonais.
+
 ```{r, fig.align = 'center'}
 plot(st_geometry(hex_grid_world))
 ```
-# Pergunta 1: 
+
+# Pergunta 1:
 
 Quantas células de grade criamos? *Dica*: A estrutura de um objeto `sf` é semelhante à de um data frame. Cada geometria é uma linha associada a múltiplos atributos.
 
 # 3. Carregando e manipulando dados de ocorrência georreferenciados
 
-Dados de ocorrência georreferenciados fornecem informações precisas sobre as localizações das espécies, o que os torna ideais para análises espaciais de biodiversidade. Nesta seção, carregamos os dados globais de ocorrência de espécies de *Mimosa* e os preparamos criando uma matriz de presença/ausência baseada em células de grade, permitindo identificar distribuições de espécies em unidades espaciais.
+Dados de ocorrência georreferenciados fornecem informações precisas sobre as localizações das espécies, o que os torna ideais para análises espaciais de biodiversidade. Nesta seção, carregamos os dados globais de ocorrência de espécies de *Mimosa* e os preparamos criando uma matriz de presença/ausência baseada em células de grade, permitindo visualizar a distribuição de espécies em unidades espaciais.
+
 ```{r}
 occurrence <- read.csv("1.data/occurrence_clean.csv")
 ```
 
 Vamos inspecionar a estrutura dos dados de ocorrência.
+
 ```{r}
 str(occurrence)
 ```
@@ -147,6 +162,7 @@ str(occurrence)
 Quantos registros o conjunto de dados de ocorrência contém? A que esses registros se referem? *Dica*: verifique o atributo `basis_of_record`.
 
 O conjunto de dados contém 22 atributos, como o nome da espécie, o nome do coletor e do determinador, informações relacionadas à localidade, ano de coleta e, mais importante, longitude e latitude. Usaremos estes últimos para converter o conjunto de dados em um objeto espacial.
+
 ```{r}
 # Converter o data frame de ocorrências em um objeto sf usando o CRS WGS84, 
 # que é o padrão para dispositivos GPS, e depois reprojete o objeto utilizando 
@@ -157,7 +173,8 @@ occurrence_points <- st_as_sf(x = occurrence,
   st_transform(., crs(hex_grid_world))
 ```
 
-Agora, com isso em mãos, vamos intersectar os pontos espaciais de ocorrência (registros) com as células de grade e recuperar o ID da célula de grade para cada registro. 
+Agora, com isso em mãos, vamos intersectar os pontos espaciais de ocorrência (registros) com as células de grade e recuperar o ID da célula de grade para cada registro.
+
 ```{r}
 # Intersectar ocorrências com as células da grade para identificar quais 
 # registros estão dentro de cada célula da grade.
@@ -179,7 +196,8 @@ occurrence <- occurrence %>%
   filter(!is.na(grid_id))
 ```
 
-Então, podemos criar uma matriz de comunidades de presença/ausência (0 = ausência; 1 = presença), com células de grade nas linhas e espécies nas colunas. Isso servirá como entrada para as análises espaciais subsequentes de biodiversidade. 
+Então, podemos criar uma matriz de comunidades de presença/ausência (0 = ausência; 1 = presença), com células de grade nas linhas e espécies nas colunas. Isso servirá como entrada para as análises espaciais subsequentes de biodiversidade.
+
 ```{r}
 # Criar uma matriz de comunidade com presença/ausência de espécies em cada 
 # célula da grade
@@ -195,7 +213,8 @@ comm_matrix[comm_matrix > 1] <- 1           # Converte valores >1 em 1 para
 
 # 4. Calculando a diversidade alfa como riqueza de espécies
 
-A riqueza de espécies é a forma mais simples de calcular a diversidade alfa. Para isso, basta contar o número de espécies por célula de grade. 
+A riqueza de espécies é a forma mais simples de calcular a diversidade alfa. Para isso, basta contar o número de espécies por célula de grade.
+
 ```{r, fig.align = 'center'}
 # Somar o número de espécies por célula da grade
 sp_richness <- rowSums(comm_matrix)
@@ -222,13 +241,13 @@ sr <- ggplot() +
 sr
 ```
 
-# Pergunta 3: 
+# Pergunta 3:
 
 O que você pode dizer sobre a riqueza de espécies de *Mimosa* na América do Sul?
 
 # 5. Calculando a diversidade beta
 
-A diversidade beta pode ser particionada em dois fenômenos diferentes: substituição espacial (turnover) e aninhamento (nestedness) de assembleias. Substituição implica a troca de algumas espécies por outras como consequência de seleção ambiental ou de restrições espaciais e históricas. Aninhamento, por outro lado, ocorre quando as biotas de locais com menor número de espécies são subconjuntos das biotas em locais mais ricos. Se você quiser aprender mais sobre a partição da diversidade beta, veja [\textcolor{blue}{este artigo}](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1466-8238.2009.00490.x).
+A diversidade beta pode ser particionada em dois fenômenos diferentes: substituição espacial (turnover) e aninhamento (nestedness) de assembleias. Substituição implica a troca de algumas espécies por outras como consequência de seleção ambiental ou de restrições espaciais e históricas. Aninhamento, por outro lado, ocorre quando as comunidades de locais com menor número de espécies são subconjuntos das comunidades em locais mais ricos. Se você quiser aprender mais sobre a partição da diversidade beta, veja [\textcolor{blue}{este artigo}](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1466-8238.2009.00490.x).
 
 Antes de prosseguir, vamos preparar nossa matriz de comunidades para as análises de diversidade beta. Singletons — espécies encontradas em apenas uma amostra — podem introduzir ruído ao inflar a dissimilaridade entre comunidades e obscurecer padrões espaciais na composição de espécies. Da mesma forma, células com apenas uma espécie podem ter o mesmo efeito. Para lidar com isso, removeremos tanto os singletons quanto as células de grade contendo uma única espécie. O código abaixo itera esse processo até que essas condições sejam atendidas.
 
@@ -258,22 +277,25 @@ repeat{
 }
 ```
 
-Agora vamos executar uma análise multi-sítio de diversidade beta para inspecionar a heterogeneidade geral na composição de espécies entre nossas amostras e verificar qual componente da diversidade beta é o mais influente. 
+Agora vamos executar uma análise multi-sítio de diversidade beta para inspecionar a heterogeneidade geral na composição de espécies entre nossas amostras e verificar qual componente da diversidade beta é o mais influente.
+
 ```{r}
 beta_multi <- beta.multi(x = comm_matrix,
                          index.family = "jaccard")
 beta_multi
 ```
 
-Considerando que um valor de 1 implica dissimilaridade máxima, a diversidade beta total (`beta.JAC`) é muito alta (>0.99) para nossas amostras. Como o componente de aninhamento (`beta.JNE`) é muito baixo (0.001), focaremos no componente de substituição (`beta.JTU`) nos passos seguintes.
+Considerando que um valor de 1 implica dissimilaridade máxima, a diversidade beta total (`beta.JAC`) é muito alta (\>0.99) para nossas amostras. Como o componente de aninhamento (`beta.JNE`) é muito baixo (0.001), focaremos no componente de substituição (`beta.JTU`) nos passos seguintes.
 
 Em seguida, realizaremos uma análise pareada de diversidade beta para calcular a diversidade beta e seus componentes entre cada par possível de amostras, armazenando os resultados em uma matriz de distâncias.
+
 ```{r, fig.align = 'center'}
 beta_pair <- beta.pair(x = comm_matrix, 
                        index.family = "jaccard")
 ```
 
 Usando essa matriz de distâncias, conduziremos uma análise de agrupamento para visualizar relações entre amostras tanto em um mapa quanto em um dendrograma. Existem vários algoritmos disponíveis para agrupar elementos com base em sua similaridade. Aqui, usaremos o algoritmo de Ward, que geralmente apresenta bom desempenho no contexto de diversidade beta.
+
 ```{r}
 # Executar uma análise de agrupamento usando o algoritmo de Ward para o componente de turnover
 set.seed(1)
@@ -342,7 +364,7 @@ grid.arrange(map, dend, ncol = 2)
 
 O mapa e o dendrograma funcionam juntos para ilustrar similaridades na composição de espécies entre células de grade. Cada terminal (folha) no dendrograma representa uma célula de grade, e o agrupamento reflete similaridades composicionais entre as células. Células da mesma cor no mapa são mais semelhantes em composição do que aquelas com cores diferentes. Além disso, o dendrograma mostra relações entre os grupos de células, e podemos interpretá-lo de forma semelhante a como interpretamos uma árvore filogenética. Por exemplo, células amarelas e verdes são mais semelhantes entre si do que em relação a quaisquer outras células.
 
-# Pergunta 4: 
+# Pergunta 4:
 
 O que você pode deduzir a partir do mapa e do dendrograma? Que padrões emergiram?
 
@@ -351,6 +373,7 @@ O que você pode deduzir a partir do mapa e do dendrograma? Que padrões emergir
 Até agora, avaliamos *como* as espécies estão distribuídas no espaço usando diversidade alfa (riqueza de espécies) e diversidade beta (dissimilaridade de Jaccard). No entanto, entender *por que* a composição de espécies muda no espaço é igualmente ou ainda mais importante, pois pode revelar insights sobre padrões e processos ecológicos. Nesta seção, examinaremos os determinantes da substituição espacial para espécies de *Mimosa*, com foco em variáveis relacionadas à temperatura e precipitação baixadas do [WorldClim](https://worldclim.org/data/worldclim21.html) e variáveis relacionadas ao solo baixadas do [SoilGrids](https://soilgrids.org). Para isso, aplicaremos a Modelagem de Dissimilaridade Generalizada (GDM), que modela distâncias composicionais pareadas entre locais como função de potenciais preditores.
 
 Vamos começar carregando essas variáveis abióticas no nosso ambiente.
+
 ```{r}
 # Carregar variáveis do BioClim
 bioclim_list <- 
@@ -371,7 +394,7 @@ names(soil_rasters) <- lookup$variable_name_snake_case[20:26]
 
 As variáveis estão armazenadas como rasters com resolução de 30 segundos, o que é incompatível com as unidades espaciais que definimos para nossas análises. Felizmente, podemos resolver esse problema aplicando estatísticas zonais para atribuir as variáveis a cada uma das nossas células de grade. Usando essa abordagem, calcularemos médias ponderadas para cada célula de grade com base na proporção de interseção com os rasters.
 
-Devido ao tempo de processamento dessa etapa (horas), o código foi comentado (#) e já disponibilizamos o resultado como um arquivo rds.
+Devido ao tempo de processamento dessa etapa (horas), o código foi comentado (\#) e já disponibilizamos o resultado como um arquivo rds.
 
 ```{r}
 # z_stats_bioclim <- terra::zonal(bioclim_rasters, 
@@ -398,6 +421,7 @@ z_stats <- readRDS("zonal_statistics.rds")
 ```
 
 Usaremos estatísticas zonais para preparar uma matriz local-por-preditor, que servirá como entrada para o GDM
+
 ```{r}
 # Obter as coordenadas do centróide de cada célula da grade (importante para calcular
 # distâncias geográficas posteriormente)
@@ -414,7 +438,8 @@ site_predictor <- cbind(site_predictor,
 grid_cells <- cbind(hex_grid_world, site_predictor)
 ```
 
-Agora vamos rodar o GDM e examinar os resultados. As saídas principais são a porcentagem de desvio explicada e a soma dos coeficientes para cada variável. A porcentagem de desvio explicada indica quanta variação na dissimilaridade da comunidade é explicada pelos preditores, enquanto a soma dos coeficientes para cada variável mostra a contribuição de cada variável para essa explicação (com somas maiores indicando maior contribuição explicativa). Aqui, também adicionamos distância geográfica como um preditor putativo para substituição de espécies no espaço com `geo = TRUE`. 
+Agora vamos rodar o GDM e examinar os resultados. As saídas principais são a porcentagem de desvio explicada e a soma dos coeficientes para cada variável. A porcentagem de desvio explicada indica quanta variação na dissimilaridade da comunidade é explicada pelos preditores, enquanto a soma dos coeficientes para cada variável mostra a contribuição de cada variável para essa explicação (com somas maiores indicando maior contribuição explicativa). Aqui, também adicionamos distância geográfica como um preditor putativo para substituição de espécies no espaço com `geo = TRUE`.
+
 ```{r}
 # Remover NAs da matriz sítio-por-preditor e corresponder com a matriz de comunidade
 site_predictor <- site_predictor %>% 
@@ -438,10 +463,11 @@ gdm_tab <- formatsitepair(bioData = biodata_1,
 
 # Executar o GDM
 gdm_model <- gdm(gdm_tab, geo = TRUE)
-summary(gdm_model)
+head(summary(gdm_model))
 ```
 
 Podemos particionar o modelo usando `gdm.partition.deviance()` para avaliar quanto cada categoria de variável (clima, solo, espaço) contribui para o desvio explicado.
+
 ```{r}
 # Particionar 2 grupos de variáveis
 ## Criar uma lista de conjuntos de variáveis para o particionamento
@@ -460,11 +486,12 @@ scgPart <- gdm.partition.deviance(gdm_tab, varSet, partSpace = TRUE)
 scgPart
 ```
 
-# Pergunta 5: 
+# Pergunta 5:
 
-Quais são os 5 determinantes mais importantes da diversidade beta, de acordo com o nosso modelo? *Dica*: verifique a soma dos coeficientes. 
+Quais são os 5 determinantes mais importantes da diversidade beta, de acordo com o nosso modelo? *Dica*: verifique a soma dos coeficientes.
 
 Se você tiver curiosidade sobre como uma determinada variável abiótica está distribuída na área de estudo, tente plotá-la. No exemplo abaixo, plotamos a precipitação anual. Use sua resposta da pergunta acima para explorar visualmente a distribuição dos determinantes mais importantes da diversidade beta. Você consegue ajustar os parâmetros do código por conta própria? *Dica*: procure o nome da variável.
+
 ```{r}
 ggplot() +
   geom_sf(data = world_sf,
@@ -482,15 +509,13 @@ ggplot() +
   theme_bw()
 ```
 
-# 7. Avaliando a diversidade de linhagens usando a diversidade filogenética (PD)
+# 7. Investigando padrões de biodiversidade utilizando diversidade filogenética (PD)
 
-Até o momento, consideramos apenas estimativas de biodiversidade que não levam
-em conta a história evolutiva das espécies. No entando, podemos também avaliar
-o quão diversas são as áreas de estudo em termos de linhagens usando a diversidade
-filogenética.
+Até o momento, consideramos apenas estimativas de biodiversidade que não levam em conta a história evolutiva das espécies. No entando, podemos também avaliar o quão diversas são as áreas de estudo em termos de linhagens usando métricas de diversidade filogenética.
 
 Vamos carregar os pacotes para essa segunda parte do tutorial.
-```{r warning=TRUE}
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
 library(phytools)
 library(ape)
 library(ggplot2)
@@ -498,53 +523,28 @@ library(beepr)
 library(remotes)
 library(picante)
 library(viridis)
-library(sf)
 
 #BiocManager::install("ggtree")
 #remotes::install_github("YuLab-SMU/ggtree", force = TRUE) #alternartiva
 library(ggtree)
 ```
 
-Agora, vamos analisar a árvore filogenética de Mimosa.
+Agora, vamos carregar e visualizar a árvore filogenética de *Mimosa*.
 
 ```{r message=FALSE, warning=FALSE}
 tree <- read.tree("1.data/tree-Vasconcelos2020.txt")
 
-# Quais sao os componentes da arvore?
-tree
-tree$tip.label #especies incluidas nas arvores
-tree$Nnode #numero de nós
-max(nodeHeights(tree)) #calcula o valor total da altura de todos os nós
+# Inpecionando o objeto árvore
+head(tree$tip.label) #taxa presentes na árvore
+tree$Nnode #número de nós
+max(nodeHeights(tree)) # valor total da altura de todos os nós
 
-## 2.1 Plotando árvores ####
-ggtree(tree)
-
-ggtree(tree, size = 0.2) + 
-  theme_tree2() + #adiciona escala
-  geom_tiplab(size = 1) + #adiciona os nomes dos tips
-  geom_nodepoint(aes(subset = node %in% 
-                       c(390, 458, 471, 477, 501, 503, 524, 526, 535, 
-                         596, 604, 610, 612, 615, 634, 636, 646, 657,
-                         662, 663, 693, 748)), color = "black", 
-                 size = 3, 
-                 alpha = 0.5) #adiciona os nós
-
-ggtree(tree, size = 0.2, layout = "circular") + #arvore circular
-  geom_tiplab(size = 1) + 
-  geom_nodepoint(aes(subset = node %in% 
-                       c(390, 458, 471, 477, 501, 503, 524, 526, 535, 
-                         596, 604, 610, 612, 615, 634, 636, 646, 657,
-                         662, 663, 693, 748)), color = "darkblue", 
-                 size = 4, 
-                 alpha = 0.5) +  
-  geom_text(aes(label = ifelse(node %in% c(390, 458, 471, 477, 501, 503, 524, 526, 535, 
-                                           596, 604, 610, 612, 615, 634, 636, 646, 657,
-                                           662, 663, 693, 748),
-                               node, NA)),
-            size = 2, color = "white")
+# Plotando a árvore
+ggtree(tree, size = 0.2, layout = "circular") + 
+  geom_tiplab(size = 1)
 ```
 
-A árvore possui alguns taxa para além de Mimosa (grupos externos), vamos remover esses outros taxa para essa análise.
+A árvore possui taxa além de *Mimosa* (grupos externos). Uma vez que só temos os dados de distribuição de espécies de *Mimosa*, precisamos remover os grupos externos para as análises subsequentes.
 
 ```{r warning=FALSE}
 outgroup <- c(tree$tip.label[!grepl("Mimosa", tree$tip.label)])
@@ -553,28 +553,25 @@ outgroup
 
 pruned_tree <- drop.tip(tree, outgroup)
 
+#plotando a árvore podada
 ggtree(pruned_tree, size = 0.2, layout = "circular") +
   geom_tiplab(aes(label = sub("Mimosa", "M", label)), 
-              size=1.5)
+              size=1)
 ```
 
-Além disso, precisamos também ajustar a nossa matriz de comunidades.
+Além disso, precisamos também ajustar a nossa matriz de comunidades para conter apenas as espécies  presentes na filogenia.
 
 ```{r}
-## 4.1 Matrix de presenca e ausencia filogenetica ####
-head(comm_matrix)
+head(colnames(comm_matrix)[colnames(comm_matrix) %in% tree$tip.label]) # algumas das espécies que estão no banco de dados de ocorrência e na filogenia
 
-#podando a matrix para conter apenas especies que ocorrem na filogenia
+# Podando a matrix de presença-ausência para conter apenas especies que ocorrem na filogenia
 comm_matrix_phyl <- comm_matrix[ , colnames(comm_matrix) %in% 
                                    pruned_tree$tip.label]
-
-# colnames(comm_matrix[!comm_matrix %in% comm_matrix_phyl])
-# colnames(comm_matrix[comm_matrix %in% comm_matrix_phyl])
 ```
 
-Agora que temos a hipótese filogenética e matriz de presença e ausência ajustada, vamos realizar as análises de diversidade filogenética.
+Agora que temos a hipótese filogenética e matriz de presença e ausência ajustada, podemos calcular a diversidade filogenética para cada comunidade (células de grade).
 
-Devido ao tempo de processamento dessa etapa, o código foi comentado (#) e já disponibilizamos o resultado como um arquivo rds.
+Devido ao tempo de processamento dessa etapa, o código foi comentado (\#) e já disponibilizamos o resultado como um arquivo rds.
 
 ```{r}
 # set.seed(42)
@@ -591,7 +588,7 @@ pd_stats$id <- rownames(pd_stats)
 pd_stats$id <- as.numeric(pd_stats$id)
 # intersect(grid_cells$grid_id, pd_stats$id)
 
-## 4.3 calculando os residuos ####
+# estimando resíduos da relação entre diversidade filogenética e riqueza de taxa
 pd_stats$residuals <- lm(pd.obs ~ ntaxa, pd_stats)$res
 
 # Arredondando valores
@@ -600,68 +597,126 @@ cols_to_round <- names(pd_stats)[!names(pd_stats) %in%
 
 pd_stats[,cols_to_round] <- round(pd_stats[,cols_to_round], 2)
 
-## 4.4 Combinando resultados de pd com objeto espacial ####
+# Combinando resultados de pd com objeto espacial
 pd_poly <- dplyr::left_join(grid_cells, pd_stats,
                             by = c("grid_id" = "id"))
 
-# extensao das grids
+# extensão das grids para os plots
 st_bbox(grid_cells)
 ```
 
 Para visualizar os resultados, vamos plotar o mapa com as estimativas das métricas de diversidade filogenética.
 
 ```{r}
-#PD
-ggplot(pd_poly) +
-  geom_sf(aes(fill = pd.obs), color = NA, alpha = 0.8) +
-  scale_fill_viridis_c(
-    option = "magma",
-    direction = -1
-  ) +
-  coord_sf(
-    xlim = c(-109.95498 , -27.95498),
-    ylim = c(-57.10205, 16.79878)
-  ) +
-  theme_bw() +
-  theme(
-    legend.position = "right",
-    panel.grid = element_blank()
+# Para melhorar a visualização, cortaremos o mapa para focar em regiões com padrões mais evidentes
+lat60 <- st_coordinates(
+  st_transform(
+    st_sfc(st_point(c(60, 60)), crs = 4326),
+    3395
   )
+)
 
-#SR
-ggplot(pd_poly) +
-  geom_sf(aes(fill = ntaxa), color = NA, alpha = 0.8) +
+#Plot de diversidade filogenética (pd.obs)
+ggplot() +
+  geom_sf(
+    data = world_sf,
+    color = "black",
+    fill = "transparent",
+    lwd = 0.3
+  ) +
+  geom_sf(
+    data = pd_poly,
+    aes(fill = pd.obs),
+    color = "transparent",
+    lwd = 0,
+    alpha = 0.9
+  ) +
   scale_fill_viridis_c(
     option = "magma",
-    direction = -1
+    direction = -1,
+    na.value = NA,
+    name = "Div. filogenética"
   ) +
   coord_sf(
-    xlim = c(-109.95498 , -27.95498),
-    ylim = c(-57.10205, 16.79878)
+    xlim = c(-20137508, lat60[1]),
+    ylim = c(-7503973, lat60[2])
   ) +
   theme_bw() +
   theme(
-    legend.position = "right",
-    panel.grid = element_blank()
-  )
+    legend.position = "right"
+  ) -> pd_plot
 
-# Residuos
-ggplot(pd_poly) +
-  geom_sf(aes(fill = residuals), color = NA, alpha = 0.8) +
+#Plot de riqueza de taxa (ntaxa)
+ggplot() +
+  geom_sf(
+    data = world_sf,
+    color = "black",
+    fill = "transparent",
+    lwd = 0.3
+  ) +
+  geom_sf(
+    data = pd_poly,
+    aes(fill = ntaxa),
+    color = "transparent",
+    lwd = 0,
+    alpha = 0.9
+  ) +
   scale_fill_viridis_c(
     option = "magma",
-    direction = -1
+    direction = -1,
+    na.value = NA,
+    name = "Riqueza"
   ) +
   coord_sf(
-    xlim = c(-109.95498 , -27.95498),
-    ylim = c(-57.10205, 16.79878)
+    xlim = c(-20137508, lat60[1]),
+    ylim = c(-7503973, lat60[2])
   ) +
   theme_bw() +
   theme(
-    legend.position = "right",
-    panel.grid = element_blank()
-  )
+    legend.position = "right"
+  ) -> sr_plot
+
+# Plot dos resíduos da regressão lineaer entre diversidade filogenética e riqueza de taxa
+ggplot() +
+  geom_sf(
+    data = world_sf,
+    color = "black",
+    fill = "transparent",
+    lwd = 0.3
+  ) +
+  geom_sf(
+    data = pd_poly,
+    aes(fill = residuals),
+    color = "transparent",
+    lwd = 0,
+    alpha = 0.9
+  ) +
+  scale_fill_viridis_c(
+    option = "magma",
+    direction = -1,
+    na.value = NA,
+    name = "Resíduos"
+  ) +
+  coord_sf(
+    xlim = c(-20137508, lat60[1]),
+    ylim = c(-7503973, lat60[2])
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "right"
+  ) -> res_plot
+```
+
+```{r}
+par(mfrow = c(3,1))
+pd_plot
+sr_plot
+res_plot
+par(mfrow = c(1,1))
 ```
 
 
 
+# Pergunta 6:
+
+Quais são as diferenças e similaridades entre os gráficos de riqueza e diversidade filogenética? Considerando que o gráfico de resíduos se refere aos resíduos da regressão linear entre diversidade filogenética e riqueza, o que podemos concluir dos padrões observados neste gráfico? 
