@@ -16,7 +16,7 @@ Nesta atividade prática, avaliaremos padrões de diversidade alfa e beta nos Ne
 
 -   **Dados de ocorrência**: Ocorrências globais de espécies de *Mimosa* baixadas do [<span style="color:blue;">GBIF </span>](https://www.gbif.org), [<span style="color:blue;">specieslink </span>](https://specieslink.net) e [<span style="color:blue;">idigbio </span>](https://www.idigbio.org).
 
--   **Dados abióticos**: Dados bioclimáticos globais baixados do [<span style="color:blue;">WorldClim 2.1 Hub</span>](https://worldclim.org/data/worldclim21.html).
+-   **Dados abióticos**: Dados bioclimáticos globais baixados do [<span style="color:blue;">WorldClim 2.1</span>](https://worldclim.org/data/worldclim21.html).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
