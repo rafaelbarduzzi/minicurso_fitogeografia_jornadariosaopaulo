@@ -8,13 +8,13 @@ output: html_document
 
 Gêneros grandes oferecem insights valiosos sobre a distribuição espacial da biodiversidade. *Mimosa* (Leguminosae), o grupo das dorme-dorme ou dormideiras, possui ≈ 600 espécies e está distribuído principalmente ao longo dos Neotrópicos, ocorrendo em diferentes biomas como savanas, florestas tropicais sazonalmente secas e florestas tropicais úmidas. 
 
-Nesta atividade prática, avaliaremos padrões de diversidade alfa e beta nos Neotrópicos usando *Mimosa* como grupo modelo e investigamos potenciais fatores que explicam a substituição (turnover) de espécies em diferentes escalas espaciais. Também calcularemos a diversidade filogenética ao longo de comunidades espaciais para incorporar a história evolutiva à investigação de padrões biogeográficos.
+Nesta atividade prática, avaliaremos padrões de diversidade alfa e beta nos Neotrópicos usando *Mimosa* como grupo modelo e investigaremos potenciais fatores que explicam a substituição (turnover) de espécies em diferentes escalas espaciais. Também calcularemos a diversidade filogenética ao longo de comunidades espaciais para incorporar a história evolutiva à investigação de padrões biogeográficos.
 
 ##### Dados
 
 - **Dados espaciais**: Dados espaciais globais baixados do [<span style="color:blue;">ArcGIS </span>](https://hub.arcgis.com/datasets/esri::world-countries)
 
--   **Dados de ocorrência**: Ocorrências globais de espécies de *Mimosa* baixadas do [<span style="color:blue;">GBIF </span>](https://www.gbif.org), [<span style="color:blue;">specieslink </span>](https://specieslink.net) e [<span style="color:blue;">idigbio </span>](https://www.idigbio.org).
+-   **Dados de ocorrência**: Ocorrências globais de espécies de *Mimosa* baixadas do [<span style="color:blue;">GBIF</span>](https://www.gbif.org), [<span style="color:blue;">specieslink </span>](https://specieslink.net) e [<span style="color:blue;">idigbio </span>](https://www.iDigBio.org).
 
 -   **Dados abióticos**: Dados bioclimáticos globais baixados do [<span style="color:blue;">WorldClim 2.1</span>](https://worldclim.org/data/worldclim21.html).
 
@@ -30,7 +30,7 @@ Primeiro, vamos limpar o ambiente removendo quaisquer objetos carregados anterio
 rm(list = ls())
 ```
 
-Em seguida, definimos nosso diretório de trabalho, que é a pasta contendo todos os dados necessários para este tutorial. Você pode fazer isso no RStudio indo em `Session -> Set Working Directory -> Choose Directory`, ou usando `setwd()` com o caminho como argumento. Por exemplo
+Em seguida, definimos nosso diretório de trabalho, que é a pasta contendo todos os dados necessários para este tutorial. Você pode fazer isso no RStudio indo em `Session -> Set Working Directory -> Choose Directory`, ou usando `setwd()` com o caminho como argumento. Por exemplo:
 
 `setwd("/Users/monique/Documents/GitHub/minicurso_fitogeografia_jornadariosaopaulo/tutorial")`
 
@@ -79,15 +79,18 @@ plot(world)
 Em análises espaciais de biodiversidade, garantir áreas com o mesmo tamanho espacial é essencial. Uma abordagem simples é dividir a área de estudo em células de grade. Agora que temos o objeto espacial representando a área terrestre da América do Sul, vamos dividi-la em uma grade de células hexagonais de tamanho igual, cada uma com 100 km entre bordas opostas.
 
 ```{r}
-# Ler o mesmo arquivo 'SpatVector' como 'sf', uma classe de objeto espacial mais flexível
-# e conveniente para trabalhar no R
-## Ocasionalmente, geometrias espaciais podem se tornar inválidas devido a auto-interseções
-## ou linhas sobrepostas nos limites de polígonos. Aqui também corrigimos isso.
+# Lê o mesmo arquivo 'SpatVector' como 'sf', uma classe de objeto
+# espacial mais flexível e conveniente para trabalhar no R.
+# Ocasionalmente, geometrias espaciais podem se tornar inválidas devido a
+# auto-interseções ou linhas sobrepostas nos limites de polígonos. Aqui também
+# corrigimos isso.
+
 world_sf <- read_sf("1.data/ne_countries_small/ne_countries_small.shp")
 
-# Remover o continente Antarctica
+# Remove o continente Antártida
 world_sf <- world_sf[world_sf$sovereignt != "Antarctica", ]
 
+### REMOVER ###
 # Vamos cortar o mundo para um aproximado da distribuição de Mimosa, para optimizar as análises
 
 # st_is_valid(world_sf)
@@ -113,30 +116,55 @@ world_sf <- world_sf[world_sf$sovereignt != "Antarctica", ]
 # world_sf <- st_crop(world_sf, box)
 # 
 # plot(st_geometry(world_sf))
+### REMOVER ###
 
-# Reprojetar o objeto espacial para EPSG:3857 (Web Mercator)
+# Reprojeta o objeto espacial para EPSG:3857 (Web Mercator)
 world_sf <- st_transform(world_sf, crs = 3395) 
 
-# Criar células de grade hexagonais cobrindo a extensão espacial do globo e
+# Cria células de grade hexagonais cobrindo a extensão espacial do globo e
 # adiciona um ID para cada célula da grade
 hex_grid_sf <- st_make_grid(world_sf, cellsize = 100000, square = F) %>%
   st_sf(.) %>%
   mutate(grid_id = 1:nrow(.))
 
-# Identificar as células da grade que realmente se sobrepõem aos continentes, criando um
-# vetor binário (0 = sem interseção; 1 = intersecta)
+# Identifica as células da grade que realmente se sobrepõem aos continentes,
+# criando um vetor binário (0 = sem interseção; 1 = intersecta)
+
 is_intersecting <- hex_grid_sf %>%
   st_intersects(., world_sf) %>%
   sapply(., function(x) if(length(x) == 0) 0 else 1)
 
-# Manter apenas as células da grade que intersectam os continentes
+# Mantém apenas as células da grade que intersectam os continentes
 hex_grid_world <- hex_grid_sf[which(is_intersecting == 1), ]
 ```
 
 Vamos visualizar o globo dividido em células hexagonais.
 
 ```{r, fig.align = 'center'}
-plot(st_geometry(hex_grid_world))
+plot(st_geometry(hex_grid_world),
+     border = "black",
+     lwd = 0.1)
+```
+
+```{r, fig.align = 'center'}
+# O plot do globo inteiro torna dificil a visualização
+# das células de grades. Podemos plotar apenas o Brasil
+# seguindo a mesma lógica de código que usamos para o
+# globo. 
+
+br <- world_sf[world_sf$sovereignt == "Brazil", ]
+
+br <- st_transform(br, crs = 3395) 
+
+is_intersecting_br <- hex_grid_sf %>%
+  st_intersects(., br) %>%
+  sapply(., function(x) if(length(x) == 0) 0 else 1)
+
+hex_grid_br <- hex_grid_sf[which(is_intersecting_br == 1), ]
+
+plot(st_geometry(hex_grid_br),
+     border = "black",
+     lwd = 0.5)
 ```
 
 # Pergunta 1:
