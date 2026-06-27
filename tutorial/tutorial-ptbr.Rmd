@@ -169,7 +169,7 @@ plot(st_geometry(hex_grid_br),
 
 # Pergunta 1:
 
-Quantas células de grade criamos? *Dica*: A estrutura de um objeto `sf` é semelhante à de um data frame. Cada geometria é uma linha associada a múltiplos atributos.
+Quantas células de grade criamos para o globo? *Dica*: A estrutura de um objeto `sf` é semelhante à de um data frame. Cada geometria é uma linha associada a múltiplos atributos.
 
 # 3. Carregando e manipulando dados de ocorrência georreferenciados
 
