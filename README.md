@@ -19,7 +19,7 @@ A biodiversidade está distribuída de maneira heterogênea ao longo do espaço 
 2.script: Pasta com scripts extras para aqueles interessados na obtenção dos dados para o tutorial. Contém:
 - download_abiotic_shapefile: realiza o download dos dados espaciais e dados bioclimáticos e de solo globais utilizados no tutorial.
 
-3.output: Pasta com arquivos gerados durante o tutorial.
+3.output: Pasta com arquivos gerados durante o tutorial. Contém:
 - zonal_statistics.rds: Estatísticas zonais, com variáveis atribuídas a cada uma das células de grade.
 - phylogenetic_diversity_stats.rds: Diversidade filogenética para cada comunidade (células de grade).
 
