@@ -1,0 +1,51 @@
+#content {
+  background: white !important;
+  max-width: none !important;
+  margin-left: 300px !important;
+  margin-right: 0 !important;
+  width: auto !important;
+}
+
+#content {
+  max-width: none !important;
+  width: calc(100% - 300px) !important;
+}
+
+#main {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.section {
+  max-width: none !important;
+}
+
+img {
+  max-width: 100% !important;
+}
+
+.figure {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.figure img {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+p.caption {
+  font-size: 1.2em !important;
+}
+
+#main p,
+#main li,
+#main blockquote {
+  font-size: 1.1rem !important;
+  line-height: 1.6 !important;
+}
+
+table.dataTable tbody td,
+table.dataTable thead th {
+  font-size: 1.1rem !important;
+}
